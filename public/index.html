@@ -7,12 +7,12 @@
 <meta name="description" content="I'm Gourav. I build small software products in public. Weekly build notes and first access to everything I ship." />
 
 <meta property="og:type" content="website" />
-<meta property="og:url" content="https://bohrx.com/" />
+<meta property="og:url" content="https://bhorx.com/" />
 <meta property="og:title" content="bhorx — building small software in public" />
 <meta property="og:description" content="Weekly build notes and first access to everything I ship." />
-<meta property="og:image" content="https://bohrx.com/og.png" />
+<meta property="og:image" content="https://bhorx.com/og.png" />
 <meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:creator" content="@yourhandle" />
+<meta name="twitter:creator" content="@FixShipRepeat" />
 
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -210,6 +210,15 @@
   .btn:hover { background: var(--accent-hi); }
   .btn:active { transform: translateY(1px); }
 
+  .hp {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+  }
+
   .note {
     margin: 12px 0 0;
     font-size: 13px;
@@ -370,6 +379,7 @@
           <input id="email" type="email" name="email" placeholder="you@company.com" autocomplete="email" required aria-label="Email address" />
           <button class="btn" type="submit">Subscribe</button>
         </div>
+        <input class="hp" id="hp" type="text" name="company" tabindex="-1" autocomplete="off" aria-hidden="true" />
       </form>
       <p class="note">Weekly build notes, plus first access to everything I ship.</p>
       <p class="status" id="status" role="status" aria-live="polite"></p>
@@ -381,7 +391,7 @@
     <div class="log">
       <div class="entry rise">
         <time datetime="2026-07-26">26 Jul 2026</time>
-        <p><strong>bohrx.com is live.</strong> Domain on Cloudflare, page deployed to Workers. Took longer to name it than to ship it.</p>
+        <p><strong>bhorx.com is live.</strong> Domain on Cloudflare, page deployed to Workers. Took longer to name it than to ship it.</p>
       </div>
       <div class="entry rise">
         <time datetime="2026-07-25">25 Jul 2026</time>
@@ -411,9 +421,9 @@
   </section>
 
   <footer>
-    <span>bhorx — built in Bengaluru</span>
+    <span>bhorx — keep on looping</span>
     <div class="socials">
-      <a href="https://x.com/yourhandle" target="_blank" rel="noopener">X</a>
+      <a href="https://x.com/FixShipRepeat" target="_blank" rel="noopener">X</a>
       <a href="https://github.com/ribokle" target="_blank" rel="noopener">GitHub</a>
     </div>
   </footer>
@@ -422,20 +432,22 @@
 
 <script>
   // ---------------------------------------------------------------------
-  // Paste your email provider's form endpoint here (Loops, Buttondown, Kit).
+  // Paste your Apps Script Web App /exec URL here.
   // While this is empty, the form tells you it isn't connected yet.
   // ---------------------------------------------------------------------
   const FORM_ENDPOINT = "";
 
   const form = document.getElementById("form");
   const email = document.getElementById("email");
+  const hp = document.getElementById("hp");
   const status = document.getElementById("status");
+  const button = form.querySelector("button");
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const value = email.value.trim();
 
-    if (!value || !value.includes("@")) {
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test(value)) {
       status.textContent = "Enter a valid email address.";
       return;
     }
@@ -445,19 +457,32 @@
       return;
     }
 
+    button.disabled = true;
     status.textContent = "Subscribing…";
 
     try {
+      // URLSearchParams keeps this a "simple request" — no CORS preflight,
+      // which is what Apps Script web apps need.
       const res = await fetch(FORM_ENDPOINT, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: value }),
+        body: new URLSearchParams({
+          email: value,
+          company: hp.value,
+          source: new URLSearchParams(location.search).get("ref") || "direct",
+        }),
       });
-      if (!res.ok) throw new Error(res.status);
+
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+
       form.reset();
-      status.textContent = "You're on the list. Talk soon.";
+      status.textContent = data.duplicate
+        ? "You're already on the list."
+        : "You're on the list. Talk soon.";
     } catch (err) {
       status.textContent = "That didn't go through. Try again in a moment.";
+    } finally {
+      button.disabled = false;
     }
   });
 
